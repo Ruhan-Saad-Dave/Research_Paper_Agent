@@ -81,14 +81,42 @@ print(docs[0].metadata)       # {"source": "...", "page": 0}
 ```
 
 ### Text Splitters
-Split large documents into smaller chunks so that each chunk fits in the LLM context window
-and is semantically focused.
+Split large documents into smaller chunks so that each chunk fits in the LLM context window and is semantically focused.
+
+#### 1. CharacterTextSplitter vs. RecursiveCharacterTextSplitter
+
+* **`CharacterTextSplitter`**: 
+  * **Mechanism**: Splits strictly on a single defined separator (default is `"\n\n"`). It does not recursively split further if a chunk is larger than the target `chunk_size` unless that separator is found.
+  * **Use Case**: Best for simple documents with a predictable, uniform structure (e.g., records separated by custom tags, tab-separated values, or double newlines).
+* **`RecursiveCharacterTextSplitter` (Recommended for general text)**:
+  * **Mechanism**: Attempts to split by a list of separators in order (default: `["\n\n", "\n", " ", ""]`). It recursively moves down the list to split text until individual chunks are below `chunk_size`, trying to keep paragraphs, sentences, and words intact.
+  * **Use Case**: Excellent for articles, research papers, and books where you want to maintain semantic coherence.
+
 ```python
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50,
+    length_function=len
+)
 chunks = splitter.split_documents(docs)
 ```
-`chunk_overlap` lets adjacent chunks share some context so nothing is lost at boundaries.
+`chunk_overlap` lets adjacent chunks share some context so semantic meaning isn't lost at boundaries.
+
+#### 2. Structured Document Splitters
+
+When dealing with structured formats, plain text splitting can destroy the hierarchy or syntax. Use these specialized splitters instead:
+
+* **MarkdownHeaderTextSplitter / HTMLHeaderTextSplitter**:
+  * Splits documents by header tags (e.g., `#`, `##` or `<h1>`, `<h2>`).
+  * Instead of just splitting text, they add the header paths as metadata (e.g., `{"Header 1": "Intro", "Header 2": "Background"}`) to each chunk, helping the LLM keep track of the section context.
+* **RecursiveJsonSplitter**:
+  * Splits nested JSON structures while maintaining valid JSON format in each chunk.
+  * Crucial for RAG over structured API responses or configurations.
+* **Language-Specific Splitters** (e.g., Python, C++, HTML, etc.):
+  * Splits code according to syntax (class definitions, function scopes).
+  * Ideal for building code-understanding agents.
 
 ### Embeddings
 ```python
